@@ -30,6 +30,7 @@ usage()
     echo "    -h              print usage"
 }
 
+unset BUILD_DIR
 
 # get command line options
 OLD_OPTIND=$OPTIND
@@ -58,17 +59,9 @@ elif test $fit_setup_error; then
 fi
 
 
-#if [ -z "$DISTRO" ]; then
-#    echo "Using default distro: speedy"
-#    DISTRO='speedy'
-#fi
 DISTRO='speedy'
 echo "Using distro: $DISTRO"
 
-#if [ -z "$MACHINE" ]; then
-#    echo "Using default build machine: fit-v2"
-#    MACHINE='fit-v2'
-#fi
 MACHINE='fit-v2'
 echo "Using machine: $MACHINE"
 
@@ -78,30 +71,7 @@ fi
 echo "Using build directory: $BUILD_DIR"
 
 
-#case $DISTRO in
-#speedy*)
-#    : ok
-#    ;;
-#*)
-#    echo -e "\n ERROR - Only distro 'speedy' is currently supported"
-#    echo -e "\n"
-#    return 1
-#    ;;
-#esac
-
-#case $MACHINE in
-#fit-v2*)
-#    : ok
-#    ;;
-#*)
-#    echo -e "\n ERROR - Only machine 'fit-v2' is currently supported"
-#    echo -e "\n"
-#    return 1
-#    ;;
-#esac
-
 # run fsl release setup script
-#DISTRO=$DISTRO MACHINE=$MACHINE source "${CWD}/sources/$FSL_TOOLS_DIR/$FSL_RELEASE_SETUP_SCRIPT" -b $BUILD_DIR
 DISTRO=$DISTRO MACHINE=$MACHINE BUILD_DIR=$BUILD_DIR source "${CWD}/sources/$FSL_TOOLS_DIR/$FSL_RELEASE_SETUP_SCRIPT"
 
 #echo "fsl return = $?"
@@ -110,11 +80,11 @@ if [ $? != 0 ]; then
     clean_up && return 1
 fi
 
-echo "after fsl release script"
-echo "BUILD_DIR=$BUILD_DIR"
-echo "BUILD_DIR_SAVE=$BUILD_DIR_SAVE"
-echo "CWD=$CWD"
-echo "pwd=`pwd`"
+#echo "after fsl release script"
+#echo "BUILD_DIR=$BUILD_DIR"
+#echo "BUILD_DIR_SAVE=$BUILD_DIR_SAVE"
+#echo "CWD=$CWD"
+#echo "pwd=`pwd`"
 
 # add fit custom layers to bitbake layers config
 echo "" >> ./conf/bblayers.conf

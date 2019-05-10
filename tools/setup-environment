@@ -1,27 +1,18 @@
 #!/bin/sh
-# -*- mode: shell-script; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
-#
-# Copyright (C) 2012, 2013, 2016 O.S. Systems Software LTDA.
-# Authored-by:  Otavio Salvador <otavio@ossystems.com.br>
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-#
-# Add options for the script
-# Copyright (C) 2013 Freescale Semiconductor, Inc.
+# Fit build environment setup script
+# Based on the FSL Community BSP script
+#   sources/base/setup-environment
+# and the Freescale iMX BSP script
+#   sources/meta-fsl-bsp-release/imx/tools/fsl-setup-release.sh
+
+. sources/meta-fsl-bsp-release/imx/tools/setup-utils.sh
+
+FSL_TOOLS_DIR="meta-fsl-bsp-release/imx/tools"
+FSL_RELEASE_SETUP_SCRIPT="fsl-setup-release.sh"
 
 CWD=`pwd`
-PROGNAME="setup-environment"
+PROGNAME="fit-setup-build"
+
 
 usage()
 {
@@ -32,36 +23,33 @@ Usage:                                   source $PROGNAME <build-dir>
     <distro>     distro name
     <build-dir>  build directory
 
-The first usage is for creating a new build directory. In this case, the
-script creates the build directory <build-dir>, configures it for the
-specified <machine> and <distro>, and prepares the calling shell for running
-bitbake on the build directory.
+The first usage is for creating a new build directory. In this case,
+the script creates the build directory <build-dir>, configures it for
+the specified <machine> and <distro>, and prepares the calling shell
+for running bitbake on the build directory.
 
 The second usage is for using an existing build directory. In this case,
 the script prepares the calling shell for running bitbake on the build
 directory <build-dir>. The build directory configuration is unchanged.
 "
 
-    ls sources/*/conf/machine/*.conf > /dev/null 2>&1
-    ls sources/meta-freescale-distro/conf/distro/fslc-*.conf > /dev/null 2>&1
+    ls sources/meta-fit-bsp/conf/machine/*.conf > /dev/null 2>&1
+    ls sources/meta-phor-v2/conf/distro/*.conf > /dev/null 2>&1
     if [ $? -eq 0 ]; then
         echo -e "
-Supported machines: `echo; ls sources/*/conf/machine/*.conf \
+Supported machines: `echo; ls sources/meta-fit-bsp/conf/machine/*.conf \
 | sed s/\.conf//g | sed -r 's/^.+\///' | xargs -I% echo -e "\t%"`
 
-Supported Freescale's distros: `echo; ls sources/meta-freescale-distro/conf/distro/fslc-*.conf \
-| sed s/\.conf//g | sed -r 's/^.+\///' | xargs -I% echo -e "\t%"`
-
-Available Poky's distros: `echo; ls sources/poky/meta-poky/conf/distro/*.conf \
+Supported distros: `echo; ls sources/meta-phor-v2/conf/distro/*.conf \
 | sed s/\.conf//g | sed -r 's/^.+\///' | xargs -I% echo -e "\t%"`
 
 Examples:
 
 - To create a new Yocto build directory:
-  $ MACHINE=imx6qdlsabresd DISTRO=fslc-framebuffer source $PROGNAME build
+  $ MACHINE=fv2qdeva DISTRO=speedy source $PROGNAME build
 
 - To use an existing Yocto build directory:
-  $ source $PROGNAME build
+  $ source $PROGNAME <build-dir>
 "
     fi
 }
@@ -72,6 +60,7 @@ clean_up()
    unset CWD TEMPLATES SHORTOPTS LONGOPTS ARGS PROGNAME
    unset generated_config updated
    unset MACHINE SDKMACHINE DISTRO OEROOT
+   unset ok_maschinen ok_distros
 }
 
 # get command line options
@@ -106,7 +95,28 @@ if [ "$(whoami)" = "root" ]; then
     echo "ERROR: do not use the BSP as root. Exiting..."
 fi
 
-if [ ! -e $1/conf/local.conf.sample ]; then
+# check machine
+ok_maschinen=`ls sources/meta-fit-bsp/conf/machine/*.conf | sed s/\.conf//g | sed -r 's/^.+\///'`
+if [[ $ok_maschinen != *"$MACHINE"* ]]; then
+    usage
+    echo -e "ERROR: machine $MACHINE is not supported."
+    clean_up
+    return 1
+fi
+
+# check distro
+ok_distros=`ls sources/meta-phor-v2/conf/distro/*.conf | sed s/\.conf//g | sed -r 's/^.+\///'`
+if [[ $ok_distros != *"$DISTRO"* ]]; then
+    usage
+    echo -e "ERROR: distro $DISTRO is not supported."
+    clean_up
+    return 1
+fi
+
+# copy new EULA into community so setup uses latest i.MX EULA
+cp sources/meta-fsl-bsp-release/imx/EULA.txt sources/meta-freescale/EULA
+
+if [ ! -e "$1/conf/local.conf.sample" ]; then
     build_dir_setup_enabled="true"
 else
     build_dir_setup_enabled="false"
@@ -172,6 +182,25 @@ EOF
         fi
     done
 
+    # add fsl imx layers to bitbake layers config
+    echo "" >> ./conf/bblayers.conf
+    echo "# i.MX Yocto Project Release layers" >> ./conf/bblayers.conf
+    hook_in_layer meta-fsl-bsp-release/imx/meta-bsp
+    hook_in_layer meta-fsl-bsp-release/imx/meta-sdk
+    echo "" >> ./conf/bblayers.conf
+    echo "BBLAYERS += \" \${BSPDIR}/sources/meta-browser \"" >> ./conf/bblayers.conf
+    echo "BBLAYERS += \" \${BSPDIR}/sources/meta-openembedded/meta-gnome \"" >> ./conf/bblayers.conf
+    echo "BBLAYERS += \" \${BSPDIR}/sources/meta-openembedded/meta-networking \"" >> ./conf/bblayers.conf
+    echo "BBLAYERS += \" \${BSPDIR}/sources/meta-openembedded/meta-python \"" >> ./conf/bblayers.conf
+    echo "BBLAYERS += \" \${BSPDIR}/sources/meta-openembedded/meta-filesystems \"" >> ./conf/bblayers.conf
+    echo "BBLAYERS += \" \${BSPDIR}/sources/meta-qt5 \"" >> ./conf/bblayers.conf
+
+    # add fit layers to bitbake layers config
+    echo "" >> ./conf/bblayers.conf
+    echo "# Fit layers" >> ./conf/bblayers.conf
+    echo "BBLAYERS += \" \${BSPDIR}/sources/meta-fit-bsp \"" >> ./conf/bblayers.conf
+    echo "BBLAYERS += \" \${BSPDIR}/sources/meta-phor-v2 \"" >> ./conf/bblayers.conf
+
     generated_config=1
 fi
 
@@ -228,19 +257,13 @@ EOF
 fi
 
 cat <<EOF
-
-Welcome to Freescale Community BSP
-
-The Yocto Project has extensive documentation about OE including a
-reference manual which can be found at:
-    http://yoctoproject.org/documentation
-
-For more information about OpenEmbedded see their website:
-    http://www.openembedded.org/
+Welcome to Fit BSP
 
 You can now run 'bitbake <target>'
 
 Common targets are:
+    fit-image-sato
+    core-image-sato
     core-image-minimal
     meta-toolchain
     meta-toolchain-sdk

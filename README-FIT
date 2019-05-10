@@ -1,12 +1,21 @@
-Fit V2 Board Support and Distro for i.MX
+Fit Yocto Board Support Package for iMX6
+========================================
 
+The 'setup-environment' script in this directory simplifies setup of
+build environments.
 
-To create an image build directory and environment for Fit imx, source the 'fit-setup-build.sh' script.
+To create a build directory, configure it for a specified machine and
+distro, and prepare the calling shell for running bitbake, use the
+script like this..
 
-Usage: source fit-setup-build.sh [-b build-dir] [-h]
-  options:
-    -b build-dir    set build directory (def: build)
-    -h              print usage
+$ MACHINE=<machine name> DISTRO=<distro name> source setup-environment <build-dir>
 
+To prepare the calling shell for running bitbake in an existing build
+directory, use thie script like this..
 
-The environment is configured for DISTRO=speedy and MACHINE=fit-v2.
+$ source setup-environment <build-dir>
+
+To show usage including supported machines and distros, do this..
+
+$ source setup-environment
+
